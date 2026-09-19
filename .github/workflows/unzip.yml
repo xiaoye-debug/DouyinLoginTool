@@ -1,42 +1,98 @@
-name: Unzip DYYYLoginBypass
+name: Extract DYYYLoginBypass
 
 on:
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
-  unzip:
+  extract:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Install unzip
-        run: sudo apt-get update && sudo apt-get install -y unzip
-
-      - name: Unzip project
         run: |
-          rm -rf DYYYLoginBypass
-          mkdir -p DYYYLoginBypass
-          unzip -o DYYYLoginBypass.zip -d DYYYLoginBypass
+          sudo apt-get update
+          sudo apt-get install -y unzip
 
-      - name: Move project files to repository root
+      - name: Extract ZIP
         run: |
-          if [ -d "DYYYLoginBypass/DYYYLoginBypass" ]; then
-            cp -R DYYYLoginBypass/DYYYLoginBypass/. .
-            rm -rf DYYYLoginBypass
+          set -e
+
+          rm -rf /tmp/DYYYLoginBypass
+          mkdir -p /tmp/DYYYLoginBypass
+
+          unzip -o DYYYLoginBypass.zip -d /tmp/DYYYLoginBypass
+
+          echo "=== ZIP contents ==="
+          find /tmp/DYYYLoginBypass -type f -print
+
+      - name: Copy original project files
+        run: |
+          set -e
+
+          PROJECT="/tmp/DYYYLoginBypass/DYYYLoginBypass"
+
+          if [ ! -d "$PROJECT" ]; then
+            echo "ERROR: DYYYLoginBypass directory not found"
+            exit 1
           fi
 
-      - name: Remove ZIP
-        run: rm -f DYYYLoginBypass.zip
+          # 删除之前错误项目留下的文件
+          rm -rf \
+            DYYYLoginBypass.plist \
+            DYYYLoginBypass.xm \
+            Sources \
+            Makefile \
+            control \
+            README.md \
+            .gitignore
 
-      - name: Commit extracted files
+          # 复制 ZIP 中的项目文件
+          # 不修改源码内容
+          cp -R "$PROJECT"/. .
+
+          # build.yml 由 GitHub 网页单独维护
+          rm -f .github/workflows/build.yml
+
+          echo "=== Extracted project ==="
+          find . -maxdepth 4 -type f \
+            ! -path "./.git/*" \
+            ! -name "DYYYLoginBypass.zip" \
+            -print | sort
+
+      - name: Remove ZIP
+        run: |
+          rm -f DYYYLoginBypass.zip
+
+      - name: Configure Git
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Commit extracted project
+        run: |
+          set -e
+
           git add -A
-          git commit -m "Extract DYYYLoginBypass project" || echo "Nothing to commit"
-          git push
+
+          if git diff --cached --quiet; then
+            echo "No changes to commit."
+            exit 0
+          fi
+
+          git commit -m "Extract DYYYLoginBypass project"
+
+      - name: Push extracted project
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+
+          git push \
+            "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:${GITHUB_REF_NAME}
