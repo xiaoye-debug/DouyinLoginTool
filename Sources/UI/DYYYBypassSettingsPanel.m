@@ -74,34 +74,23 @@ static NSString *const kDYYYLoginBypassEnabledKey = @"DYYYLoginBypassEnabled";
         closeButton.translatesAutoresizingMaskIntoConstraints = NO;
         [cardView addSubview:closeButton];
         
-        // 布局约束
+                // 布局约束
         [NSLayoutConstraint activateConstraints:@[
-            // 卡片居中
             [cardView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
             [cardView.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
-            [cardView widthAnchor constraintEqualToConstant:280],
-            [cardView heightAnchor constraintEqualToConstant:220],
-            
-            // 标题
+            [cardView.widthAnchor constraintEqualToConstant:280],
+            [cardView.heightAnchor constraintEqualToConstant:220],
             [titleLabel.topAnchor constraintEqualToAnchor:cardView.topAnchor constant:20],
             [titleLabel.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:20],
             [titleLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-20],
-            
-            // 开关
             [bypassSwitch.topAnchor constraintEqualToAnchor:titleLabel.bottomAnchor constant:20],
             [bypassSwitch.centerXAnchor constraintEqualToAnchor:cardView.centerXAnchor],
-            
-            // 状态标签
             [statusLabel.topAnchor constraintEqualToAnchor:bypassSwitch.bottomAnchor constant:15],
             [statusLabel.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:20],
             [statusLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-20],
-            
-            // 提示标签
             [hintLabel.topAnchor constraintEqualToAnchor:statusLabel.bottomAnchor constant:10],
             [hintLabel.leadingAnchor constraintEqualToAnchor:cardView.leadingAnchor constant:20],
             [hintLabel.trailingAnchor constraintEqualToAnchor:cardView.trailingAnchor constant:-20],
-            
-            // 关闭按钮
             [closeButton.topAnchor constraintEqualToAnchor:hintLabel.bottomAnchor constant:15],
             [closeButton.centerXAnchor constraintEqualToAnchor:cardView.centerXAnchor],
         ]];
