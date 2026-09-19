@@ -11,27 +11,29 @@
         // setEnableCollectGF:
         Method setEnableCollectGFMethod = class_getInstanceMethod(installIDManagerClass, @selector(setEnableCollectGF:));
         if (setEnableCollectGFMethod) {
-            method_setImplementation(setEnableCollectGFMethod, (IMP)^void(id self, SEL _cmd, BOOL enabled) {
+            IMP newIMP = imp_implementationWithBlock(^void(id self, BOOL enabled) {
                 if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
                     // 禁用 GF 采集
                     return;
                 }
                 void (*orig)(id, SEL, BOOL) = (void *)method_getImplementation(setEnableCollectGFMethod);
-                orig(self, _cmd, enabled);
+                orig(self, @selector(setEnableCollectGF:), enabled);
             });
+            method_setImplementation(setEnableCollectGFMethod, newIMP);
         }
         
         // setEnableDtrait:
         Method setEnableDtraitMethod = class_getInstanceMethod(installIDManagerClass, @selector(setEnableDtrait:));
         if (setEnableDtraitMethod) {
-            method_setImplementation(setEnableDtraitMethod, (IMP)^void(id self, SEL _cmd, BOOL enabled) {
+            IMP newIMP = imp_implementationWithBlock(^void(id self, BOOL enabled) {
                 if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
                     // 禁用 Dtrait
                     return;
                 }
                 void (*orig)(id, SEL, BOOL) = (void *)method_getImplementation(setEnableDtraitMethod);
-                orig(self, _cmd, enabled);
+                orig(self, @selector(setEnableDtrait:), enabled);
             });
+            method_setImplementation(setEnableDtraitMethod, newIMP);
         }
     }
     
@@ -41,25 +43,27 @@
         // dtraitCollectConfigEmpty
         Method dtraitCollectConfigEmptyMethod = class_getInstanceMethod(installGFManagerClass, @selector(dtraitCollectConfigEmpty));
         if (dtraitCollectConfigEmptyMethod) {
-            method_setImplementation(dtraitCollectConfigEmptyMethod, (IMP)^BOOL(id self, SEL _cmd) {
+            IMP newIMP = imp_implementationWithBlock(^BOOL(id self) {
                 if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
                     return YES; // 返回空配置
                 }
                 BOOL (*orig)(id, SEL) = (void *)method_getImplementation(dtraitCollectConfigEmptyMethod);
-                return orig(self, _cmd);
+                return orig(self, @selector(dtraitCollectConfigEmpty));
             });
+            method_setImplementation(dtraitCollectConfigEmptyMethod, newIMP);
         }
         
         // dtraitConfigFromFile
         Method dtraitConfigFromFileMethod = class_getInstanceMethod(installGFManagerClass, @selector(dtraitConfigFromFile));
         if (dtraitConfigFromFileMethod) {
-            method_setImplementation(dtraitConfigFromFileMethod, (IMP)^id(id self, SEL _cmd) {
+            IMP newIMP = imp_implementationWithBlock(^id(id self) {
                 if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
                     return nil; // 返回空配置
                 }
                 id (*orig)(id, SEL) = (void *)method_getImplementation(dtraitConfigFromFileMethod);
-                return orig(self, _cmd);
+                return orig(self, @selector(dtraitConfigFromFile));
             });
+            method_setImplementation(dtraitConfigFromFileMethod, newIMP);
         }
     }
     
@@ -68,9 +72,9 @@
     if (networkManagerClass) {
         Method transferedURLMethod = class_getInstanceMethod(networkManagerClass, @selector(transferedURL:));
         if (transferedURLMethod) {
-            method_setImplementation(transferedURLMethod, (IMP)^id(id self, SEL _cmd, id url) {
+            IMP newIMP = imp_implementationWithBlock(^id(id self, id url) {
                 id (*orig)(id, SEL, id) = (void *)method_getImplementation(transferedURLMethod);
-                id originalURL = orig(self, _cmd, url);
+                id originalURL = orig(self, @selector(transferedURL:), url);
                 
                 if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
                     return [DYYYLoginBypassManager URLByReplacingTargetBundleIdentifiers:originalURL];
@@ -78,6 +82,7 @@
                 
                 return originalURL;
             });
+            method_setImplementation(transferedURLMethod, newIMP);
         }
     }
     
@@ -86,13 +91,15 @@
     if (httpRequestClass) {
         Method setURLMethod = class_getInstanceMethod(httpRequestClass, @selector(setURL:));
         if (setURLMethod) {
-            method_setImplementation(setURLMethod, (IMP)^void(id self, SEL _cmd, id url) {
+            IMP newIMP = imp_implementationWithBlock(^void(id self, id url) {
+                id finalURL = url;
                 if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
-                    url = [DYYYLoginBypassManager URLByReplacingTargetBundleIdentifiers:url];
+                    finalURL = [DYYYLoginBypassManager URLByReplacingTargetBundleIdentifiers:url];
                 }
                 void (*orig)(id, SEL, id) = (void *)method_getImplementation(setURLMethod);
-                orig(self, _cmd, url);
+                orig(self, @selector(setURL:), finalURL);
             });
+            method_setImplementation(setURLMethod, newIMP);
         }
     }
 }
