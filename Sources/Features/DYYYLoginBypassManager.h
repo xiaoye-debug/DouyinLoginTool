@@ -7,6 +7,7 @@ NS_ASSUME_NONNULL_BEGIN
 #pragma mark - Login State Detection
 
 + (BOOL)isLoginBypassEnabled;
++ (void)setLoginBypassEnabled:(BOOL)enabled;
 + (void)configureInitialStateIfNeeded;
 
 #pragma mark - Login/Logout Handling
