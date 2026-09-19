@@ -3,6 +3,17 @@
 #import "DYYYBypassSettingsPanel.h"
 #import <UIKit/UIKit.h>
 
+// 声明要 hook 的类的接口
+@interface AWEFeedContainerViewController : UIViewController
+@end
+
+@interface AWEUserService : NSObject
++ (instancetype)sharedService;
+- (BOOL)isLogin;
+- (void)loginWithUserID:(NSString *)userID completion:(void (^)(BOOL))completion;
+- (void)logout;
+@end
+
 // 双指长按手势处理函数
 static void DYYYHandleTwoFingerLongPress(id self, SEL _cmd, UILongPressGestureRecognizer *gesture) {
     if (gesture.state == UIGestureRecognizerStateBegan) {
