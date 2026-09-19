@@ -1,0 +1,22 @@
+# Theos
+.theos/
+packages/
+
+# Xcode
+*.xcodeproj
+*.xcworkspace
+xcuserdata/
+DerivedData/
+
+# macOS
+.DS_Store
+*.swp
+*~
+
+# Build artifacts
+*.o
+*.dylib
+*.deb
+
+# Logs
+*.log

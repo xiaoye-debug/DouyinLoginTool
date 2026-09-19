@@ -1,0 +1,11 @@
+Package: com.dyyy.loginbypass
+Name: DYYYLoginBypass
+Version: 1.0-0
+Description: 抖音绕过登录插件（独立版），仅供学习交流。
+Homepage: https://github.com/xiaoye-debug/DYYY
+Section: Tweaks
+Depends: firmware (>= 5.0), mobilesubstrate
+Priority: optional
+Maintainer: DYYY
+Author: DYYY
+Architecture: iphoneos-arm
