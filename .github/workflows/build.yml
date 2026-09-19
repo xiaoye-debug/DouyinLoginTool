@@ -2,12 +2,9 @@ name: Build DYYYLoginBypass
 
 on:
   push:
-    branches:
-      - main
-      - master
-    paths-ignore:
-      - "DYYYLoginBypass.zip"
-
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
   workflow_dispatch:
 
 jobs:
@@ -15,83 +12,55 @@ jobs:
     runs-on: macos-latest
 
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+    - name: Checkout repository
+      uses: actions/checkout@v4
 
-      - name: Install Theos
-        run: |
-          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
-          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+    - name: Install Theos (skip SDK)
+      run: |
+        export THEOS=$HOME/theos
+        git clone --recursive https://github.com/theos/theos.git $THEOS
+        echo "THEOS=$THEOS" >> $GITHUB_ENV
+        echo "$THEOS/bin" >> $GITHUB_PATH
 
-      - name: Setup Theos environment
-        run: |
-          echo "$HOME/theos/bin" >> "$GITHUB_PATH"
-          mkdir -p "$HOME/theos/sdks"
+    - name: Install dependencies
+      run: |
+        brew install ldid xz
 
-      - name: Download iOS SDK
-        run: |
-          cd "$HOME/theos/sdks"
+    - name: Download iOS SDK
+      run: |
+        mkdir -p $HOME/theos/sdks
+        cd $HOME/theos/sdks
+        curl -L -o sdk.tar "https://github.com/xybp888/iOS-SDKs/raw/master/iPhoneOS16.5.sdk.tar.gz" || \
+        curl -L -o sdk.tar.gz "https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"
+        if [ -f sdk.tar.gz ]; then
+          tar -xzf sdk.tar.gz
+        elif [ -f sdk.tar ]; then
+          tar -xzf sdk.tar
+        fi
+        rm -f sdk.tar sdk.tar.gz
+        ls -la
 
-          curl -L \
-            -o iPhoneOS14.5.sdk.tar.gz \
-            https://github.com/theos/sdks/releases/download/iPhoneOS14.5.sdk/iPhoneOS14.5.sdk.tar.gz
+    - name: Build tweak (rootless)
+      run: |
+        make clean
+        make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
 
-          tar -xzf iPhoneOS14.5.sdk.tar.gz
-          rm -f iPhoneOS14.5.sdk.tar.gz
+    - name: Build tweak (roothide)
+      run: |
+        make clean
+        make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
 
-      - name: Check project
-        run: |
-          echo "=== Project files ==="
-          find . -maxdepth 4 -type f \
-            ! -path "./.git/*" \
-            -print | sort
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: DYYYLoginBypass-Packages
+        path: packages/*.deb
+        if-no-files-found: warn
 
-          echo
-          echo "=== Makefile ==="
-          cat Makefile
-
-      - name: Build rootless
-        run: |
-          make clean
-          make package \
-            FINALPACKAGE=1 \
-            THEOS_PACKAGE_SCHEME=rootless
-
-      - name: Save rootless package
-        run: |
-          mkdir -p artifacts/rootless
-          cp -f packages/*.deb artifacts/rootless/
-
-      - name: Build roothide
-        run: |
-          make clean
-          make package \
-            FINALPACKAGE=1 \
-            THEOS_PACKAGE_SCHEME=roothide
-
-      - name: Save roothide package
-        run: |
-          mkdir -p artifacts/roothide
-          cp -f packages/*.deb artifacts/roothide/
-
-      - name: List packages
-        run: |
-          echo "=== Build artifacts ==="
-          find artifacts -type f -print
-
-      - name: Upload packages
-        uses: actions/upload-artifact@v4
-        with:
-          name: DYYYLoginBypass-Packages
-          path: artifacts/
-          if-no-files-found: error
-
-      - name: Create Release
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v2
-        with:
-          files: artifacts/**/*.deb
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Create Release
+      if: startsWith(github.ref, 'refs/tags/')
+      uses: softprops/action-gh-release@v2
+      with:
+        files: packages/*.deb
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
