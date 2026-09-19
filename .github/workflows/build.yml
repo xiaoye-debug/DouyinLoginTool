@@ -29,7 +29,6 @@ jobs:
     - name: Setup iOS SDK
       run: |
         mkdir -p $HOME/theos/sdks
-        # 使用 Xcode 自带的 SDK
         XCODE_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
         ln -s "$XCODE_SDK" $HOME/theos/sdks/iPhoneOS.sdk
         echo "SDK linked from: $XCODE_SDK"
@@ -39,11 +38,6 @@ jobs:
       run: |
         make clean
         make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=rootless
-
-    - name: Build tweak (roothide)
-      run: |
-        make clean
-        make package FINALPACKAGE=1 THEOS_PACKAGE_SCHEME=roothide
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
