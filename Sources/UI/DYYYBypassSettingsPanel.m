@@ -77,8 +77,8 @@ static NSString *const kDYYYLoginBypassEnabledKey = @"DYYYLoginBypassEnabled";
         // 布局约束
         [NSLayoutConstraint activateConstraints:@[
             // 卡片居中
-            [cardView centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-            [cardView centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
+            [cardView.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
+            [cardView.centerYAnchor constraintEqualToAnchor:self.centerYAnchor],
             [cardView widthAnchor constraintEqualToConstant:280],
             [cardView heightAnchor constraintEqualToConstant:220],
             
