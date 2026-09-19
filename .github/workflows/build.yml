@@ -31,28 +31,28 @@ jobs:
         mkdir -p $HOME/theos/sdks
         cd $HOME/theos/sdks
         
-        # 尝试多个 SDK 源
-        echo "尝试下载 iPhoneOS16.5.sdk..."
+        echo "下载 iPhoneOS16.5.sdk..."
         
-        # 源1: theos/sdks releases
-        if ! curl -L -o sdk.tar.gz "https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"; then
-          echo "源1失败，尝试源2..."
-          
-          # 源2: 使用 raw.githubusercontent.com
-          if ! curl -L -o sdk.tar.gz "https://raw.githubusercontent.com/xybp888/iOS-SDKs/master/iPhoneOS16.5.sdk.tar.gz"; then
-            echo "源2失败，尝试源3..."
-            
-            # 源3: 使用另一个 SDK 仓库
-            if ! curl -L -o sdk.tar.gz "https://github.com/xybp888/iOS-SDKs/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"; then
-              echo "所有 SDK 源都失败了"
-              exit 1
-            fi
-          fi
-        fi
+        # 使用 wget 并跟随重定向
+        wget --tries=3 --timeout=60 -O sdk.tar.gz \
+          "https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz" || \
+        wget --tries=3 --timeout=60 -O sdk.tar.gz \
+          "https://gh.api.99988866.xyz/https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz" || \
+        wget --tries=3 --timeout=60 -O sdk.tar.gz \
+          "https://ghproxy.com/https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"
         
         # 验证文件
-        if [ ! -f sdk.tar.gz ] || [ $(stat -f%z sdk.tar.gz) -lt 1000000 ]; then
-          echo "SDK 文件下载失败或文件太小"
+        if [ ! -f sdk.tar.gz ]; then
+          echo "SDK 文件不存在"
+          exit 1
+        fi
+        
+        FILE_SIZE=$(stat -f%z sdk.tar.gz 2>/dev/null || stat -c%s sdk.tar.gz 2>/dev/null)
+        echo "文件大小: $FILE_SIZE 字节"
+        
+        if [ "$FILE_SIZE" -lt 1000000 ]; then
+          echo "SDK 文件太小，可能下载失败"
+          head -c 100 sdk.tar.gz
           exit 1
         fi
         
