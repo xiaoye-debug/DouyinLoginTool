@@ -15,7 +15,7 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install Theos (skip SDK)
+    - name: Install Theos
       run: |
         export THEOS=$HOME/theos
         git clone --recursive https://github.com/theos/theos.git $THEOS
@@ -26,41 +26,14 @@ jobs:
       run: |
         brew install ldid xz
 
-    - name: Download iOS SDK
+    - name: Setup iOS SDK
       run: |
         mkdir -p $HOME/theos/sdks
-        cd $HOME/theos/sdks
-        
-        echo "下载 iPhoneOS16.5.sdk..."
-        
-        # 使用 wget 并跟随重定向
-        wget --tries=3 --timeout=60 -O sdk.tar.gz \
-          "https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz" || \
-        wget --tries=3 --timeout=60 -O sdk.tar.gz \
-          "https://gh.api.99988866.xyz/https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz" || \
-        wget --tries=3 --timeout=60 -O sdk.tar.gz \
-          "https://ghproxy.com/https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"
-        
-        # 验证文件
-        if [ ! -f sdk.tar.gz ]; then
-          echo "SDK 文件不存在"
-          exit 1
-        fi
-        
-        FILE_SIZE=$(stat -f%z sdk.tar.gz 2>/dev/null || stat -c%s sdk.tar.gz 2>/dev/null)
-        echo "文件大小: $FILE_SIZE 字节"
-        
-        if [ "$FILE_SIZE" -lt 1000000 ]; then
-          echo "SDK 文件太小，可能下载失败"
-          head -c 100 sdk.tar.gz
-          exit 1
-        fi
-        
-        # 解压
-        tar -xzf sdk.tar.gz
-        rm -f sdk.tar.gz
-        echo "SDK 下载并解压成功"
-        ls -la
+        # 使用 Xcode 自带的 SDK
+        XCODE_SDK=$(xcrun --sdk iphoneos --show-sdk-path)
+        ln -s "$XCODE_SDK" $HOME/theos/sdks/iPhoneOS.sdk
+        echo "SDK linked from: $XCODE_SDK"
+        ls -la $HOME/theos/sdks/
 
     - name: Build tweak (rootless)
       run: |
