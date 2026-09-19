@@ -1,148 +1,107 @@
+#import "DYYYLoginRepairHooks.h"
 #import "DYYYLoginBypassManager.h"
 #import <objc/runtime.h>
 
-static NSString *const kDYYYLoginBypassEnabledKey = @"DYYYLoginBypassEnabled";
+@implementation DYYYLoginRepairHooks
 
-@implementation DYYYLoginBypassManager
-
-+ (BOOL)isLoginBypassEnabled {
-    NSNumber *value = [[NSUserDefaults standardUserDefaults] objectForKey:kDYYYLoginBypassEnabledKey];
-    if (!value) {
-        return YES; // 默认启用
++ (void)installHooks {
+    // Hook TTInstallIDManager 禁用 GF 和 Dtrait 采集
+    Class installIDManagerClass = NSClassFromString(@"TTInstallIDManager");
+    if (installIDManagerClass) {
+        // setEnableCollectGF:
+        Method setEnableCollectGFMethod = class_getInstanceMethod(installIDManagerClass, @selector(setEnableCollectGF:));
+        if (setEnableCollectGFMethod) {
+            IMP newIMP = imp_implementationWithBlock(^void(id self, BOOL enabled) {
+                if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
+                    // 禁用 GF 采集
+                    return;
+                }
+                void (*orig)(id, SEL, BOOL) = (void *)method_getImplementation(setEnableCollectGFMethod);
+                orig(self, @selector(setEnableCollectGF:), enabled);
+            });
+            method_setImplementation(setEnableCollectGFMethod, newIMP);
+        }
+        
+        // setEnableDtrait:
+        Method setEnableDtraitMethod = class_getInstanceMethod(installIDManagerClass, @selector(setEnableDtrait:));
+        if (setEnableDtraitMethod) {
+            IMP newIMP = imp_implementationWithBlock(^void(id self, BOOL enabled) {
+                if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
+                    // 禁用 Dtrait
+                    return;
+                }
+                void (*orig)(id, SEL, BOOL) = (void *)method_getImplementation(setEnableDtraitMethod);
+                orig(self, @selector(setEnableDtrait:), enabled);
+            });
+            method_setImplementation(setEnableDtraitMethod, newIMP);
+        }
     }
-    return [value boolValue];
-}
-
-+ (void)setLoginBypassEnabled:(BOOL)enabled {
-    [[NSUserDefaults standardUserDefaults] setObject:@(enabled) forKey:kDYYYLoginBypassEnabledKey];
-    [[NSUserDefaults standardUserDefaults] synchronize];
-}
-
-+ (void)configureInitialStateIfNeeded {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        // 检查是否已经登录
-        Class userServiceClass = NSClassFromString(@"AWEUserService");
-        if (userServiceClass) {
-            id userService = [userServiceClass performSelector:@selector(sharedInstance)];
-            if (userService) {
-                BOOL isLoggedIn = NO;
-                if ([userService respondsToSelector:@selector(isLoggedIn)]) {
-                    isLoggedIn = [userService performSelector:@selector(isLoggedIn)];
+    
+    // Hook TTInstallGFManager 禁用 GF 管理
+    Class installGFManagerClass = NSClassFromString(@"TTInstallGFManager");
+    if (installGFManagerClass) {
+        // dtraitCollectConfigEmpty
+        Method dtraitCollectConfigEmptyMethod = class_getInstanceMethod(installGFManagerClass, @selector(dtraitCollectConfigEmpty));
+        if (dtraitCollectConfigEmptyMethod) {
+            IMP newIMP = imp_implementationWithBlock(^BOOL(id self) {
+                if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
+                    return YES; // 返回空配置
+                }
+                BOOL (*orig)(id, SEL) = (void *)method_getImplementation(dtraitCollectConfigEmptyMethod);
+                return orig(self, @selector(dtraitCollectConfigEmpty));
+            });
+            method_setImplementation(dtraitCollectConfigEmptyMethod, newIMP);
+        }
+        
+        // dtraitConfigFromFile
+        Method dtraitConfigFromFileMethod = class_getInstanceMethod(installGFManagerClass, @selector(dtraitConfigFromFile));
+        if (dtraitConfigFromFileMethod) {
+            IMP newIMP = imp_implementationWithBlock(^id(id self) {
+                if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
+                    return nil; // 返回空配置
+                }
+                id (*orig)(id, SEL) = (void *)method_getImplementation(dtraitConfigFromFileMethod);
+                return orig(self, @selector(dtraitConfigFromFile));
+            });
+            method_setImplementation(dtraitConfigFromFileMethod, newIMP);
+        }
+    }
+    
+    // Hook TTNetworkManager 替换 URL 中的 Bundle ID
+    Class networkManagerClass = NSClassFromString(@"TTNetworkManager");
+    if (networkManagerClass) {
+        Method transferedURLMethod = class_getInstanceMethod(networkManagerClass, @selector(transferedURL:));
+        if (transferedURLMethod) {
+            IMP newIMP = imp_implementationWithBlock(^id(id self, id url) {
+                id (*orig)(id, SEL, id) = (void *)method_getImplementation(transferedURLMethod);
+                id originalURL = orig(self, @selector(transferedURL:), url);
+                
+                if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
+                    return [DYYYLoginBypassManager URLByReplacingTargetBundleIdentifiers:originalURL];
                 }
                 
-                if (isLoggedIn) {
-                    // 已登录，禁用绕过
-                    [self setLoginBypassEnabled:NO];
-                } else {
-                    // 未登录，启用绕过
-                    [self setLoginBypassEnabled:YES];
+                return originalURL;
+            });
+            method_setImplementation(transferedURLMethod, newIMP);
+        }
+    }
+    
+    // Hook TTHttpRequest 替换 URL
+    Class httpRequestClass = NSClassFromString(@"TTHttpRequest");
+    if (httpRequestClass) {
+        Method setURLMethod = class_getInstanceMethod(httpRequestClass, @selector(setURL:));
+        if (setURLMethod) {
+            IMP newIMP = imp_implementationWithBlock(^void(id self, id url) {
+                id finalURL = url;
+                if ([DYYYLoginBypassManager shouldApplyLoginNetworkCamouflage]) {
+                    finalURL = [DYYYLoginBypassManager URLByReplacingTargetBundleIdentifiers:url];
                 }
-            }
-        }
-    });
-}
-
-+ (void)handleOfficialLoginCompletionWithUserID:(NSString *)userID {
-    [self setLoginBypassEnabled:NO];
-}
-
-+ (void)handleOfficialLogout {
-    [self setLoginBypassEnabled:YES];
-}
-
-+ (BOOL)shouldApplyLoginNetworkCamouflage {
-    return [self isLoginBypassEnabled];
-}
-
-+ (NSString *)replacementBundleIdentifier:(NSString *)bundleIdentifier {
-    if (![self shouldApplyLoginNetworkCamouflage]) {
-        return bundleIdentifier;
-    }
-    
-    // 返回伪装后的 Bundle ID
-    static NSArray *emojiSuffixes = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        emojiSuffixes = @[@"😄", @"😊", @"😃", @"😉", @"😍", @"😘", @"😜", @"😝", @"😛", @"😋"];
-    });
-    
-    NSString *randomEmoji = emojiSuffixes[arc4random_uniform((uint32_t)emojiSuffixes.count)];
-    return [bundleIdentifier stringByAppendingString:randomEmoji];
-}
-
-+ (NSDictionary *)headersByReplacingBundleIdentifiers:(NSDictionary *)headers {
-    if (![self shouldApplyLoginNetworkCamouflage]) {
-        return headers;
-    }
-    
-    NSMutableDictionary *mutableHeaders = [headers mutableCopy];
-    
-    // 替换常见的 Bundle ID 相关字段
-    NSArray *bundleIDKeys = @[@"X-Bundle-ID", @"Bundle-ID", @"BundleID"];
-    for (NSString *key in bundleIDKeys) {
-        NSString *value = mutableHeaders[key];
-        if (value) {
-            mutableHeaders[key] = [self replacementBundleIdentifier:value];
+                void (*orig)(id, SEL, id) = (void *)method_getImplementation(setURLMethod);
+                orig(self, @selector(setURL:), finalURL);
+            });
+            method_setImplementation(setURLMethod, newIMP);
         }
     }
-    
-    return [mutableHeaders copy];
-}
-
-+ (NSString *)stringByReplacingTargetBundleIdentifiers:(NSString *)value {
-    if (![self shouldApplyLoginNetworkCamouflage]) {
-        return value;
-    }
-    
-    // 替换字符串中的 Bundle ID
-    NSArray *targetIdentifiers = @[
-        @"com.ss.iphone.ugc.Aweme",
-        @"com.ss.iphone.ugc.Aweme3760",
-        @"com.ss.iphone.ugc.Aweme3800",
-        @"com.ss.iphone.ugc.Aweme3861",
-        @"com.ss.iphone.ugc.Aweme3890",
-        @"com.ss.iphone.ugc.Aweme3920",
-        @"com.ss.iphone.ugc.Aweme3950"
-    ];
-    
-    NSString *result = value;
-    for (NSString *identifier in targetIdentifiers) {
-        if ([result containsString:identifier]) {
-            result = [result stringByReplacingOccurrencesOfString:identifier 
-                                                       withString:[self replacementBundleIdentifier:identifier]];
-        }
-    }
-    
-    return result;
-}
-
-+ (NSURL *)URLByReplacingTargetBundleIdentifiers:(NSURL *)url {
-    if (![self shouldApplyLoginNetworkCamouflage]) {
-        return url;
-    }
-    
-    NSString *urlString = [url absoluteString];
-    NSString *modifiedString = [self stringByReplacingTargetBundleIdentifiers:urlString];
-    
-    if (![modifiedString isEqualToString:urlString]) {
-        return [NSURL URLWithString:modifiedString];
-    }
-    
-    return url;
-}
-
-+ (BOOL)shouldApplyEmojiBundleSpoof {
-    return [self isLoginBypassEnabled];
-}
-
-+ (BOOL)shouldMaintainCloneSessionIdentity {
-    return [self isLoginBypassEnabled];
-}
-
-+ (BOOL)isNumericAwemeCloneProcess {
-    NSString *bundleIdentifier = [[NSBundle mainBundle] bundleIdentifier];
-    return [bundleIdentifier hasPrefix:@"com.ss.iphone.ugc.Aweme"];
 }
 
 @end
