@@ -1,0 +1,42 @@
+name: Unzip DYYYLoginBypass
+
+on:
+  workflow_dispatch:
+
+jobs:
+  unzip:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install unzip
+        run: sudo apt-get update && sudo apt-get install -y unzip
+
+      - name: Unzip project
+        run: |
+          rm -rf DYYYLoginBypass
+          mkdir -p DYYYLoginBypass
+          unzip -o DYYYLoginBypass.zip -d DYYYLoginBypass
+
+      - name: Move project files to repository root
+        run: |
+          if [ -d "DYYYLoginBypass/DYYYLoginBypass" ]; then
+            cp -R DYYYLoginBypass/DYYYLoginBypass/. .
+            rm -rf DYYYLoginBypass
+          fi
+
+      - name: Remove ZIP
+        run: rm -f DYYYLoginBypass.zip
+
+      - name: Commit extracted files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Extract DYYYLoginBypass project" || echo "Nothing to commit"
+          git push
