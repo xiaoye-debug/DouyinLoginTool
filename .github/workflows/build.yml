@@ -1,0 +1,97 @@
+name: Build DYYYLoginBypass
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths-ignore:
+      - "DYYYLoginBypass.zip"
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Theos
+        run: |
+          bash -c "$(curl -fsSL https://raw.githubusercontent.com/theos/theos/master/bin/install-theos)"
+          echo "THEOS=$HOME/theos" >> "$GITHUB_ENV"
+
+      - name: Setup Theos environment
+        run: |
+          echo "$HOME/theos/bin" >> "$GITHUB_PATH"
+          mkdir -p "$HOME/theos/sdks"
+
+      - name: Download iOS SDK
+        run: |
+          cd "$HOME/theos/sdks"
+
+          curl -L \
+            -o iPhoneOS14.5.sdk.tar.gz \
+            https://github.com/theos/sdks/releases/download/iPhoneOS14.5.sdk/iPhoneOS14.5.sdk.tar.gz
+
+          tar -xzf iPhoneOS14.5.sdk.tar.gz
+          rm -f iPhoneOS14.5.sdk.tar.gz
+
+      - name: Check project
+        run: |
+          echo "=== Project files ==="
+          find . -maxdepth 4 -type f \
+            ! -path "./.git/*" \
+            -print | sort
+
+          echo
+          echo "=== Makefile ==="
+          cat Makefile
+
+      - name: Build rootless
+        run: |
+          make clean
+          make package \
+            FINALPACKAGE=1 \
+            THEOS_PACKAGE_SCHEME=rootless
+
+      - name: Save rootless package
+        run: |
+          mkdir -p artifacts/rootless
+          cp -f packages/*.deb artifacts/rootless/
+
+      - name: Build roothide
+        run: |
+          make clean
+          make package \
+            FINALPACKAGE=1 \
+            THEOS_PACKAGE_SCHEME=roothide
+
+      - name: Save roothide package
+        run: |
+          mkdir -p artifacts/roothide
+          cp -f packages/*.deb artifacts/roothide/
+
+      - name: List packages
+        run: |
+          echo "=== Build artifacts ==="
+          find artifacts -type f -print
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: DYYYLoginBypass-Packages
+          path: artifacts/
+          if-no-files-found: error
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/**/*.deb
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
