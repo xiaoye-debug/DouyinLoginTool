@@ -1,4 +1,4 @@
-name: Unzip DYYYLoginBypass
+name: Extract DYYYLoginBypass
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: write
 
 jobs:
-  unzip:
+  extract:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,26 +23,26 @@ jobs:
         run: |
           set -e
 
-          rm -rf /tmp/dyyy_extract
-          mkdir -p /tmp/dyyy_extract
+          rm -rf /tmp/DYYYLoginBypass
+          mkdir -p /tmp/DYYYLoginBypass
 
-          unzip -o DYYYLoginBypass.zip -d /tmp/dyyy_extract
+          unzip -o DYYYLoginBypass.zip -d /tmp/DYYYLoginBypass
 
           echo "=== ZIP contents ==="
-          find /tmp/dyyy_extract -type f -print
+          find /tmp/DYYYLoginBypass -type f -print
 
-      - name: Copy project files
+      - name: Copy original project files
         run: |
           set -e
 
-          PROJECT="/tmp/dyyy_extract/DYYYLoginBypass"
+          PROJECT="/tmp/DYYYLoginBypass/DYYYLoginBypass"
 
           if [ ! -d "$PROJECT" ]; then
             echo "ERROR: DYYYLoginBypass directory not found"
             exit 1
           fi
 
-          # 删除仓库中旧的临时项目文件
+          # 删除之前错误项目留下的文件
           rm -rf \
             DYYYLoginBypass.plist \
             DYYYLoginBypass.xm \
@@ -52,12 +52,17 @@ jobs:
             README.md \
             .gitignore
 
-          # 从 ZIP 原样复制项目文件
+          # 复制 ZIP 中的项目文件
+          # 不修改源码内容
           cp -R "$PROJECT"/. .
 
-          echo "=== Repository files after extraction ==="
+          # build.yml 由 GitHub 网页单独维护
+          rm -f .github/workflows/build.yml
+
+          echo "=== Extracted project ==="
           find . -maxdepth 4 -type f \
             ! -path "./.git/*" \
+            ! -name "DYYYLoginBypass.zip" \
             -print | sort
 
       - name: Remove ZIP
@@ -82,7 +87,7 @@ jobs:
 
           git commit -m "Extract DYYYLoginBypass project"
 
-      - name: Push repository changes
+      - name: Push extracted project
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
