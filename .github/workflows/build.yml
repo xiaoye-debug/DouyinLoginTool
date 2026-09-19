@@ -30,14 +30,36 @@ jobs:
       run: |
         mkdir -p $HOME/theos/sdks
         cd $HOME/theos/sdks
-        curl -L -o sdk.tar "https://github.com/xybp888/iOS-SDKs/raw/master/iPhoneOS16.5.sdk.tar.gz" || \
-        curl -L -o sdk.tar.gz "https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"
-        if [ -f sdk.tar.gz ]; then
-          tar -xzf sdk.tar.gz
-        elif [ -f sdk.tar ]; then
-          tar -xzf sdk.tar
+        
+        # 尝试多个 SDK 源
+        echo "尝试下载 iPhoneOS16.5.sdk..."
+        
+        # 源1: theos/sdks releases
+        if ! curl -L -o sdk.tar.gz "https://github.com/theos/sdks/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"; then
+          echo "源1失败，尝试源2..."
+          
+          # 源2: 使用 raw.githubusercontent.com
+          if ! curl -L -o sdk.tar.gz "https://raw.githubusercontent.com/xybp888/iOS-SDKs/master/iPhoneOS16.5.sdk.tar.gz"; then
+            echo "源2失败，尝试源3..."
+            
+            # 源3: 使用另一个 SDK 仓库
+            if ! curl -L -o sdk.tar.gz "https://github.com/xybp888/iOS-SDKs/releases/download/iPhoneOS16.5.sdk/iPhoneOS16.5.sdk.tar.gz"; then
+              echo "所有 SDK 源都失败了"
+              exit 1
+            fi
+          fi
         fi
-        rm -f sdk.tar sdk.tar.gz
+        
+        # 验证文件
+        if [ ! -f sdk.tar.gz ] || [ $(stat -f%z sdk.tar.gz) -lt 1000000 ]; then
+          echo "SDK 文件下载失败或文件太小"
+          exit 1
+        fi
+        
+        # 解压
+        tar -xzf sdk.tar.gz
+        rm -f sdk.tar.gz
+        echo "SDK 下载并解压成功"
         ls -la
 
     - name: Build tweak (rootless)
